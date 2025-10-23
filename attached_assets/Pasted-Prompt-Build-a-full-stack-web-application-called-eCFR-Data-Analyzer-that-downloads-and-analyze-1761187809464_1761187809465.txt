@@ -1,0 +1,87 @@
+Prompt:
+
+Build a full-stack web application called “eCFR Data Analyzer” that downloads and analyzes U.S. Electronic Code of Federal Regulations (eCFR) data from the official API at https://www.ecfr.gov/developers/documentation/api/v1
+.
+
+Functional Goals:
+
+Data Collection Layer:
+
+Write a backend service (in Python Flask or Node.js/Express) that:
+
+Fetches and downloads the current eCFR data from the government API.
+
+Normalizes and stores the JSON response in a server-side database (PostgreSQL or MongoDB).
+
+Includes fields such as agency, title, chapter, section, and text.
+
+Caches the timestamp of the last fetch and supports periodic refreshing.
+
+
+Data Access API:
+
+Expose RESTful endpoints such as:
+
+GET /api/agencies — returns all agencies found in the data.
+
+GET /api/agency/:name — returns all sections belonging to an agency.
+
+GET /api/analysis/wordcount — returns average and total word count per agency.
+
+GET /api/analysis/changes — returns historical data or revisions if available (based on eCFR history endpoint).
+
+GET /api/analysis/checksums — returns a hash/checksum of text for each agency to detect content changes.
+
+GET /api/analysis/custom — implements a custom metric of your choice:
+
+Example: “Regulatory Complexity Index (RCI)” — calculate the average sentence length and vocabulary diversity (unique words ÷ total words) for each agency’s text.
+
+Frontend UI
+
+Build a simple dashboard using React (or Vue) that:
+
+Lets users trigger “Download/Refresh eCFR data.”
+
+Displays interactive charts (using Chart.js or Recharts) showing:
+
+Word count per agency.
+
+Historical changes (trend lines).
+
+Checksum comparison (for detecting updated agencies).
+
+Custom metric (RCI) comparison bar chart.
+
+Includes a table view to review raw analysis results.
+
+Meaningful Analysis:
+Ensure analysis provides practical insights:
+Identify which agencies have the most extensive regulations.
+Track which agencies’ texts change most frequently.
+Compute and visualize complexity trends using the custom metric.
+
+Review & Export:
+
+Include a “Review Results” page where users can:
+Browse computed analytics.
+Export results as CSV or JSON.
+View timestamp of last analysis and checksum summaries.
+
+
+Modular code structure (backend routes, services, frontend components)
+
+Notes
+
+Only compute metrics that provide meaningful information to users.
+
+Include the custom metric “Regulatory Complexity Index” (RCI).
+
+Include proper error handling for failed API calls.
+
+Add documentation in README.md describing:
+
+API routes
+
+Analysis methods
+
+How to run and deploy the app
