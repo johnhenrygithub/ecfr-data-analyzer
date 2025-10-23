@@ -10,10 +10,8 @@ export function Navigation() {
       <div className="max-w-7xl mx-auto px-6">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center gap-8">
-            <Link href="/">
-              <a className="text-xl font-bold hover-elevate px-3 py-1 rounded-md" data-testid="link-home">
-                eCFR Analyzer
-              </a>
+            <Link href="/" className="text-xl font-bold hover-elevate px-3 py-1 rounded-md" data-testid="link-home">
+              eCFR Data Analyzer
             </Link>
             <div className="flex gap-2">
               <Link href="/">
