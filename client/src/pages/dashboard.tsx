@@ -6,7 +6,7 @@ import { MetricSkeleton, ChartSkeleton } from "@/components/loading-skeleton";
 import { Building2, FileText, Clock, Hash, RefreshCw, BarChart3, TrendingUp, PieChart, Activity } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, PieChart as RePieChart, Pie, Cell } from "recharts";
 import { useState } from "react";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { AgencyAnalysis, FetchMetadata } from "@shared/schema";
 
@@ -32,8 +32,9 @@ export default function Dashboard() {
       });
       
       setTimeout(() => {
-        refetchMetadata();
-        refetchAgencies();
+        // Invalidate all queries to refresh data across all pages
+        queryClient.invalidateQueries({ queryKey: ['/api/metadata'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/analysis/agencies'] });
         setIsRefreshing(false);
         toast({
           title: "Data Refreshed",

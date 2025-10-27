@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import { 
   fetchTitles, 
   fetchTitleContent, 
-  extractTextFromStructure,
+  extractTextFromXML,
   analyzeText,
   calculateChecksum,
   calculateRCI 
@@ -210,18 +210,23 @@ async function performECFRFetch() {
     const samplesToFetch = titles.slice(0, 5);
     
     for (const title of samplesToFetch) {
-      console.log(`Fetching title ${title.identifier}: ${title.name}`);
-      
-      const content = await fetchTitleContent(title.identifier);
-      if (!content) {
-        console.log(`No content for title ${title.identifier}`);
+      // Skip reserved titles
+      if (title.reserved) {
         continue;
       }
       
-      // Extract text
-      const text = extractTextFromStructure(content);
+      console.log(`Fetching title ${title.number}: ${title.name} (${title.latest_issue_date})`);
+      
+      const xmlContent = await fetchTitleContent(title.number, title.latest_issue_date);
+      if (!xmlContent) {
+        console.log(`No content for title ${title.number}`);
+        continue;
+      }
+      
+      // Extract text from XML
+      const text = extractTextFromXML(xmlContent);
       if (!text || text.trim().length === 0) {
-        console.log(`No text content for title ${title.identifier}`);
+        console.log(`No text content for title ${title.number}`);
         continue;
       }
       
@@ -232,9 +237,9 @@ async function performECFRFetch() {
       // Store regulation
       await storage.createRegulation({
         agency: title.name,
-        title: title.identifier,
-        chapter: content.label || '',
-        section: content.identifier || '',
+        title: `Title ${title.number}`,
+        chapter: '',
+        section: '',
         textContent: text.substring(0, 50000), // Limit to 50k chars to avoid storage issues
         wordCount: analysis.wordCount,
         checksum,

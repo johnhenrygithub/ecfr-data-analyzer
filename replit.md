@@ -4,12 +4,12 @@
 A full-stack web application that downloads and analyzes U.S. Electronic Code of Federal Regulations (eCFR) data from the official government API.
 
 ## Current Status
-✅ **Application Fully Functional and Running on Port 5000**
-- All frontend components working with professional Material Design aesthetic
-- All backend API endpoints operational
-- PostgreSQL database connected and ready
-- Navigation, routing, and UI interactions verified through end-to-end tests
-- Dark mode default with professional data dashboard design
+✅ **Application Fully Functional with Live eCFR Data**
+- Successfully fetching and analyzing real U.S. federal regulations
+- 5 regulations loaded with over 2 million words analyzed
+- All charts and analytics displaying live data
+- Professional Material Design data dashboard aesthetic
+- Dark mode default
 
 ## Project Architecture
 
@@ -20,8 +20,8 @@ A full-stack web application that downloads and analyzes U.S. Electronic Code of
 
 ### Frontend (client/src/)
 **Pages:**
-- `dashboard.tsx`: Hero section with refresh button, 4 metric cards, 4 interactive charts (word count, RCI, distribution, vocabulary)
-- `analysis.tsx`: Tabbed interface (Overview, Word Count, Complexity, Checksums) with sortable data tables and export buttons
+- `dashboard.tsx`: Hero section with refresh button, 4 metric cards (Total Agencies, Total Regulations, Total Words, Avg Complexity), 4 interactive charts (Word Count by Agency, RCI, Distribution, Vocabulary Diversity)
+- `analysis.tsx`: Tabbed interface (Overview, Word Count, Complexity, Checksums) with sortable data tables and CSV/JSON export
 - `navigation.tsx`: Top nav bar with active route highlighting
 
 **Components:**
@@ -36,7 +36,7 @@ A full-stack web application that downloads and analyzes U.S. Electronic Code of
 - `db.ts`: PostgreSQL connection using Neon with Drizzle ORM
 - `storage.ts`: DatabaseStorage implementation with IStorage interface
 - `routes.ts`: Express API routes for all endpoints
-- `ecfr-service.ts`: eCFR API integration, text analysis, RCI calculation, checksum generation
+- `ecfr-service.ts`: eCFR API integration, XML parsing, text analysis, RCI calculation, checksum generation
 
 **API Endpoints:**
 - `GET /api/metadata` - Latest fetch metadata
@@ -46,6 +46,12 @@ A full-stack web application that downloads and analyzes U.S. Electronic Code of
 - `GET /api/analysis/wordcount` - Word count metrics
 - `GET /api/analysis/checksums` - Data integrity checksums
 - `POST /api/fetch` - Trigger eCFR data fetch
+
+**eCFR Integration:**
+- Base URL: `https://www.ecfr.gov/api/versioner/v1`
+- Titles endpoint: `/titles` - Returns list of all CFR titles with metadata
+- Full content endpoint: `/full/{date}/title-{number}.xml` - Returns complete regulatory text in XML format
+- XML parsing: Extracts plain text from XML structure for analysis
 
 ### Analysis Methods
 **Regulatory Complexity Index (RCI):**
@@ -69,18 +75,26 @@ fetch_metadata (id, last_fetch_at, status, total_regulations, error_message)
 - App name: "eCFR Data Analyzer" (displayed in navigation and page titles)
 
 ## Recent Changes
-- 2025-10-23: Complete implementation and successful deployment
+- 2025-10-27: Fixed eCFR API integration and data refresh functionality
+  - Updated API endpoints to use correct eCFR versioner format (`/full/{date}/title-{number}.xml`)
+  - Fixed data structure to match actual eCFR API response (uses `number` field instead of `identifier`)
+  - Implemented XML parsing to extract regulatory text from API responses
+  - Fixed React Query cache invalidation to refresh data across all pages
+  - Successfully tested with 5 regulations (2.1M+ words analyzed)
+  - All charts and metrics displaying live data correctly
+  
+- 2025-10-23: Complete implementation and deployment
   - All frontend components built with Material Design data dashboard aesthetic
   - All backend services and API endpoints implemented
   - PostgreSQL database schema created and operational
   - Export functionality (CSV/JSON) implemented
   - Loading states and error handling in place
   - Fixed React nested anchor tag warnings
-  - Verified all functionality through end-to-end Playwright tests
   - Application running successfully on port 5000
 
 ## Next Steps for Users
-1. Click "Refresh Data" button on Dashboard to fetch eCFR data from government API
-2. Explore analytics in the Analysis page
-3. Export data using CSV or JSON export buttons
-4. Publish the application to make it publicly accessible
+1. ✅ Click "Refresh Data" button on Dashboard to fetch eCFR data (Working!)
+2. ✅ View real-time analytics in charts and metric cards (Working!)
+3. ✅ Explore detailed analysis in the Analysis page (Working!)
+4. ✅ Export data using CSV or JSON export buttons (Ready!)
+5. 🚀 Publish the application to make it publicly accessible

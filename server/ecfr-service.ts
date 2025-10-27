@@ -3,8 +3,10 @@ import { createHash } from "crypto";
 const ECFR_API_BASE = "https://www.ecfr.gov/api/versioner/v1";
 
 interface ECFRTitle {
-  identifier: string;
+  number: number;
   name: string;
+  reserved: boolean;
+  latest_issue_date: string;
 }
 
 interface ECFRStructure {
@@ -33,18 +35,20 @@ export async function fetchTitles(): Promise<ECFRTitle[]> {
 }
 
 /**
- * Fetches the structure and content for a specific title
+ * Fetches the full regulatory text content for a specific title on a specific date
+ * Returns XML content as text
  */
-export async function fetchTitleContent(titleNumber: string): Promise<ECFRStructure | null> {
+export async function fetchTitleContent(titleNumber: number, date: string): Promise<string | null> {
   try {
-    const response = await fetch(`${ECFR_API_BASE}/structure/${titleNumber}/latest`);
+    const response = await fetch(`${ECFR_API_BASE}/full/${date}/title-${titleNumber}.xml`);
     if (!response.ok) {
       if (response.status === 404) {
         return null;
       }
       throw new Error(`Failed to fetch title ${titleNumber}: ${response.statusText}`);
     }
-    return await response.json();
+    const xmlText = await response.text();
+    return xmlText;
   } catch (error) {
     console.error(`Error fetching title ${titleNumber} content:`, error);
     return null;
@@ -52,16 +56,16 @@ export async function fetchTitleContent(titleNumber: string): Promise<ECFRStruct
 }
 
 /**
- * Extracts text content from the structure recursively
+ * Extracts plain text from XML regulatory content
+ * Removes XML tags and extracts readable text
  */
-export function extractTextFromStructure(structure: ECFRStructure): string {
-  let text = structure.text || '';
-  
-  if (structure.children && structure.children.length > 0) {
-    for (const child of structure.children) {
-      text += ' ' + extractTextFromStructure(child);
-    }
-  }
+export function extractTextFromXML(xmlContent: string): string {
+  // Remove XML tags and extract text content
+  // This is a simple approach - remove all XML tags
+  let text = xmlContent
+    .replace(/<[^>]+>/g, ' ')  // Remove XML tags
+    .replace(/\s+/g, ' ')      // Normalize whitespace
+    .trim();
   
   return text;
 }
