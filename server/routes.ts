@@ -39,7 +39,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/agencies", async (req, res) => {
     try {
       const regulations = await storage.getAllRegulations();
-      const agencies = [...new Set(regulations.map(r => r.agency))];
+      const agencies = Array.from(new Set(regulations.map(r => r.agency)));
       res.json(agencies);
     } catch (error) {
       console.error("Error fetching agencies:", error);
@@ -75,19 +75,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Calculate analysis for each agency
       const analysis: AgencyAnalysis[] = [];
-      for (const [agency, regs] of agencyMap.entries()) {
-        const totalWordCount = regs.reduce((sum, r) => sum + r.wordCount, 0);
+      for (const [agency, regs] of Array.from(agencyMap.entries())) {
+        const totalWordCount = regs.reduce((sum: number, r) => sum + r.wordCount, 0);
         const averageWordCount = totalWordCount / regs.length;
         
-        // Recalculate complexity metrics from all text
-        const allText = regs.map(r => r.textContent).join(' ');
-        const textAnalysis = analyzeText(allText);
+        // Aggregate pre-calculated metrics (no re-analysis needed)
+        const totalSentences = regs.reduce((sum: number, r) => sum + r.sentenceCount, 0);
+        const totalUniqueWords = regs.reduce((sum: number, r) => sum + r.uniqueWords, 0);
         
-        // Calculate combined checksum
-        const combinedText = regs.map(r => r.textContent).sort().join('');
-        const checksum = calculateChecksum(combinedText);
+        // Calculate weighted averages
+        const avgSentenceLength = totalWordCount / totalSentences;
+        const vocabularyDiversity = totalUniqueWords / totalWordCount;
         
-        const rci = calculateRCI(textAnalysis.avgSentenceLength, textAnalysis.vocabularyDiversity);
+        // Calculate combined checksum from individual checksums (not from truncated text)
+        const combinedChecksums = regs.map(r => r.checksum).sort().join('');
+        const checksum = calculateChecksum(combinedChecksums);
+        
+        const rci = calculateRCI(avgSentenceLength, vocabularyDiversity);
         
         analysis.push({
           agency,
@@ -96,8 +100,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           regulationCount: regs.length,
           checksum,
           rci,
-          avgSentenceLength: textAnalysis.avgSentenceLength,
-          vocabularyDiversity: textAnalysis.vocabularyDiversity,
+          avgSentenceLength,
+          vocabularyDiversity,
         });
       }
 
@@ -167,15 +171,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // POST /api/fetch - Fetch and store eCFR data
   app.post("/api/fetch", async (req, res) => {
     try {
-      // Start fetch operation
-      await storage.createMetadata({
+      // Create initial metadata entry
+      const metadata = await storage.createMetadata({
         lastFetchAt: new Date(),
         status: 'in_progress',
         totalRegulations: 0,
+        progressCurrent: 0,
+        progressTotal: 0,
+        currentTitle: 'Initializing...',
       });
 
       // Fetch in background (don't block response)
-      performECFRFetch().catch(err => {
+      performECFRFetch(metadata.id).catch(err => {
         console.error("Background fetch failed:", err);
       });
 
@@ -193,7 +200,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 /**
  * Background task to fetch eCFR data
  */
-async function performECFRFetch() {
+async function performECFRFetch(metadataId: string) {
   try {
     console.log("Starting eCFR data fetch...");
     
@@ -204,66 +211,116 @@ async function performECFRFetch() {
     const titles = await fetchTitles();
     console.log(`Found ${titles.length} titles`);
     
+    // Filter non-reserved titles - fetch ALL titles
+    const validTitles = titles.filter(t => !t.reserved);
+    const totalTitles = validTitles.length;
+    
+    // Update metadata with total count
+    await storage.updateMetadata(metadataId, {
+      progressTotal: totalTitles,
+      currentTitle: 'Starting fetch...',
+    });
+    
     let totalRegulations = 0;
+    let currentProgress = 0;
     
-    // Fetch content for first 5 titles to avoid timeout (sample data)
-    const samplesToFetch = titles.slice(0, 5);
-    
-    for (const title of samplesToFetch) {
-      // Skip reserved titles
-      if (title.reserved) {
-        continue;
+    // Process titles in batches to reduce memory pressure
+    const BATCH_SIZE = 5;
+    for (let i = 0; i < validTitles.length; i += BATCH_SIZE) {
+      const batch = validTitles.slice(i, i + BATCH_SIZE);
+      
+      for (const title of batch) {
+        currentProgress++;
+        
+        try {
+          // Update progress (in-place update, not creating new row)
+          await storage.updateMetadata(metadataId, {
+            progressCurrent: currentProgress,
+            currentTitle: `Title ${title.number}: ${title.name}`,
+          });
+          
+          console.log(`[${currentProgress}/${totalTitles}] Fetching title ${title.number}: ${title.name}`);
+          
+          const xmlContent = await fetchTitleContent(title.number, title.latest_issue_date);
+          if (!xmlContent) {
+            console.log(`No content for title ${title.number} - skipping`);
+            continue;
+          }
+          
+          // Skip titles that are too large (over 50MB) to avoid OOM
+          const xmlSize = Buffer.byteLength(xmlContent, 'utf8');
+          if (xmlSize > 50 * 1024 * 1024) {
+            console.log(`Title ${title.number} is too large (${Math.round(xmlSize / 1024 / 1024)}MB) - skipping to avoid OOM`);
+            continue;
+          }
+          
+          // Extract text from XML
+          const text = extractTextFromXML(xmlContent);
+          if (!text || text.trim().length === 0) {
+            console.log(`No text content for title ${title.number} - skipping`);
+            continue;
+          }
+          
+          // Analyze text (calculate metrics from full text)
+          const analysis = analyzeText(text);
+          const checksum = calculateChecksum(text);
+          
+          // Store regulation with metrics and truncated text sample
+          // Metrics are pre-calculated from full text to avoid re-analysis of truncated data
+          await storage.createRegulation({
+            agency: title.name,
+            title: `Title ${title.number}`,
+            chapter: '',
+            section: '',
+            textContent: text.substring(0, 5000), // Small sample for reference
+            wordCount: analysis.wordCount,
+            checksum,
+            // Store metrics as integers to avoid floating point precision issues
+            sentenceCount: analysis.sentenceCount,
+            uniqueWords: analysis.uniqueWords,
+            avgSentenceLength: Math.round(analysis.avgSentenceLength * 100), // Store as integer * 100
+            vocabularyDiversity: Math.round(analysis.vocabularyDiversity * 10000), // Store as integer * 10000
+          });
+          
+          totalRegulations++;
+          
+          // Update regulation count
+          await storage.updateMetadata(metadataId, {
+            totalRegulations,
+          });
+          
+          console.log(`Stored regulation for ${title.name} (${analysis.wordCount} words)`);
+          
+          // Force GC hint after each title (if available)
+          if (global.gc) {
+            global.gc();
+          }
+        } catch (titleError) {
+          console.error(`Error processing title ${title.number} (${title.name}):`, titleError);
+          console.log(`Skipping title ${title.number} and continuing with next title`);
+          // Continue with next title instead of failing entire fetch
+        }
       }
       
-      console.log(`Fetching title ${title.number}: ${title.name} (${title.latest_issue_date})`);
-      
-      const xmlContent = await fetchTitleContent(title.number, title.latest_issue_date);
-      if (!xmlContent) {
-        console.log(`No content for title ${title.number}`);
-        continue;
+      // Small delay between batches to allow GC
+      if (i + BATCH_SIZE < validTitles.length) {
+        await new Promise(resolve => setTimeout(resolve, 100));
       }
-      
-      // Extract text from XML
-      const text = extractTextFromXML(xmlContent);
-      if (!text || text.trim().length === 0) {
-        console.log(`No text content for title ${title.number}`);
-        continue;
-      }
-      
-      // Analyze text
-      const analysis = analyzeText(text);
-      const checksum = calculateChecksum(text);
-      
-      // Store regulation
-      await storage.createRegulation({
-        agency: title.name,
-        title: `Title ${title.number}`,
-        chapter: '',
-        section: '',
-        textContent: text.substring(0, 50000), // Limit to 50k chars to avoid storage issues
-        wordCount: analysis.wordCount,
-        checksum,
-      });
-      
-      totalRegulations++;
-      console.log(`Stored regulation for ${title.name} (${analysis.wordCount} words)`);
     }
     
-    // Update metadata
-    await storage.createMetadata({
-      lastFetchAt: new Date(),
+    // Update metadata with final success status
+    await storage.updateMetadata(metadataId, {
       status: 'success',
-      totalRegulations,
+      currentTitle: 'Complete',
+      progressCurrent: totalTitles,
     });
     
     console.log(`eCFR fetch complete. Stored ${totalRegulations} regulations.`);
   } catch (error) {
     console.error("Error in performECFRFetch:", error);
     
-    await storage.createMetadata({
-      lastFetchAt: new Date(),
+    await storage.updateMetadata(metadataId, {
       status: 'error',
-      totalRegulations: 0,
       errorMessage: error instanceof Error ? error.message : 'Unknown error',
     });
   }

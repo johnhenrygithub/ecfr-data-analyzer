@@ -5,9 +5,10 @@ import { ChartCard } from "@/components/chart-card";
 import { MetricSkeleton, ChartSkeleton } from "@/components/loading-skeleton";
 import { Building2, FileText, Clock, Hash, RefreshCw, BarChart3, TrendingUp, PieChart, Activity } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, PieChart as RePieChart, Pie, Cell } from "recharts";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { Progress } from "@/components/ui/progress";
 import type { AgencyAnalysis, FetchMetadata } from "@shared/schema";
 
 export default function Dashboard() {
@@ -28,28 +29,48 @@ export default function Dashboard() {
       await apiRequest('POST', '/api/fetch', {});
       toast({
         title: "Data Refresh Started",
-        description: "eCFR data is being fetched and analyzed. This may take a few moments.",
+        description: "Fetching all CFR titles from the eCFR API. This will take several minutes.",
       });
-      
-      setTimeout(() => {
-        // Invalidate all queries to refresh data across all pages
-        queryClient.invalidateQueries({ queryKey: ['/api/metadata'] });
-        queryClient.invalidateQueries({ queryKey: ['/api/analysis/agencies'] });
-        setIsRefreshing(false);
-        toast({
-          title: "Data Refreshed",
-          description: "eCFR data has been successfully updated.",
-        });
-      }, 2000);
     } catch (error) {
       setIsRefreshing(false);
       toast({
         title: "Refresh Failed",
-        description: "Failed to fetch eCFR data. Please try again.",
+        description: "Failed to start eCFR data fetch. Please try again.",
         variant: "destructive",
       });
     }
   };
+
+  // Poll for progress updates when refreshing
+  useEffect(() => {
+    if (!isRefreshing) return;
+
+    const pollInterval = setInterval(async () => {
+      await queryClient.invalidateQueries({ queryKey: ['/api/metadata'] });
+      const currentMetadata = queryClient.getQueryData<FetchMetadata>(['/api/metadata']);
+      
+      if (currentMetadata?.status === 'success' || currentMetadata?.status === 'error') {
+        setIsRefreshing(false);
+        await queryClient.invalidateQueries({ queryKey: ['/api/analysis/agencies'] });
+        
+        if (currentMetadata.status === 'success') {
+          toast({
+            title: "Data Refreshed",
+            description: `Successfully loaded ${currentMetadata.totalRegulations} CFR titles.`,
+          });
+        } else {
+          toast({
+            title: "Refresh Failed",
+            description: currentMetadata.errorMessage || "An error occurred during fetch.",
+            variant: "destructive",
+          });
+        }
+        clearInterval(pollInterval);
+      }
+    }, 2000);
+
+    return () => clearInterval(pollInterval);
+  }, [isRefreshing, toast]);
 
   const totalAgencies = agencies?.length || 0;
   const totalWords = agencies?.reduce((sum, a) => sum + a.totalWordCount, 0) || 0;
@@ -99,6 +120,24 @@ export default function Dashboard() {
               </Button>
             </div>
           </div>
+          
+          {/* Progress Indicator */}
+          {metadata?.status === 'in_progress' && metadata.progressTotal && metadata.progressTotal > 0 && (
+            <div className="mt-6 space-y-2" data-testid="progress-indicator">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">
+                  {metadata.currentTitle || 'Loading...'}
+                </span>
+                <span className="font-medium">
+                  {metadata.progressCurrent || 0} / {metadata.progressTotal}
+                </span>
+              </div>
+              <Progress 
+                value={((metadata.progressCurrent || 0) / metadata.progressTotal) * 100} 
+                className="h-2"
+              />
+            </div>
+          )}
         </div>
       </div>
 

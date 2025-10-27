@@ -13,6 +13,11 @@ export const regulations = pgTable("regulations", {
   textContent: text("text_content").notNull(),
   wordCount: integer("word_count").notNull().default(0),
   checksum: text("checksum").notNull(),
+  // Pre-calculated metrics to avoid re-analysis of truncated text
+  sentenceCount: integer("sentence_count").notNull().default(0),
+  uniqueWords: integer("unique_words").notNull().default(0),
+  avgSentenceLength: integer("avg_sentence_length").notNull().default(0), // stored as integer (actual * 100)
+  vocabularyDiversity: integer("vocabulary_diversity").notNull().default(0), // stored as integer (actual * 10000)
   createdAt: timestamp("created_at").notNull().defaultNow(),
 }, (table) => ({
   agencyIdx: index("agency_idx").on(table.agency),
@@ -25,6 +30,9 @@ export const fetchMetadata = pgTable("fetch_metadata", {
   status: text("status").notNull(), // 'success' | 'error' | 'in_progress'
   totalRegulations: integer("total_regulations").notNull().default(0),
   errorMessage: text("error_message"),
+  progressCurrent: integer("progress_current").default(0),
+  progressTotal: integer("progress_total").default(0),
+  currentTitle: text("current_title"),
 });
 
 // Insert schemas

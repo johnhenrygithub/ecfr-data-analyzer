@@ -19,6 +19,7 @@ export interface IStorage {
   
   // Metadata
   createMetadata(metadata: InsertFetchMetadata): Promise<FetchMetadata>;
+  updateMetadata(id: string, metadata: Partial<InsertFetchMetadata>): Promise<FetchMetadata>;
   getLatestMetadata(): Promise<FetchMetadata | undefined>;
 }
 
@@ -52,6 +53,15 @@ export class DatabaseStorage implements IStorage {
     const [result] = await db
       .insert(fetchMetadata)
       .values(metadata)
+      .returning();
+    return result;
+  }
+
+  async updateMetadata(id: string, metadata: Partial<InsertFetchMetadata>): Promise<FetchMetadata> {
+    const [result] = await db
+      .update(fetchMetadata)
+      .set(metadata)
+      .where(eq(fetchMetadata.id, id))
       .returning();
     return result;
   }
