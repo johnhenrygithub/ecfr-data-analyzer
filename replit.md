@@ -75,13 +75,16 @@ fetch_metadata (id, last_fetch_at, status, total_regulations, error_message)
 - App name: "eCFR Data Analyzer" (displayed in navigation and page titles)
 
 ## Recent Changes
-- 2025-10-27: Fixed eCFR API integration and data refresh functionality
-  - Updated API endpoints to use correct eCFR versioner format (`/full/{date}/title-{number}.xml`)
-  - Fixed data structure to match actual eCFR API response (uses `number` field instead of `identifier`)
-  - Implemented XML parsing to extract regulatory text from API responses
-  - Fixed React Query cache invalidation to refresh data across all pages
-  - Successfully tested with 5 regulations (2.1M+ words analyzed)
-  - All charts and metrics displaying live data correctly
+- 2025-10-27: Implemented complete selective refresh feature for CFR titles
+  - Added checkbox UI to select specific titles for refresh
+  - Implemented backend deletion of specific agencies using Drizzle's `inArray()`
+  - Fixed metadata calculation to show correct total regulation count (not just current fetch)
+  - Added comprehensive query invalidation (agencies, wordcount, checksums)
+  - Real-time progress tracking with X/N format during selective refresh
+  - "Loaded" badges appear for successfully refreshed titles
+  - Data persists across all page navigation
+  - Successfully tested with clean database (47 titles, no duplicates)
+  - Dashboard metrics remain accurate after selective refresh (Total Regulations = 47)
   
 - 2025-10-23: Complete implementation and deployment
   - All frontend components built with Material Design data dashboard aesthetic
@@ -93,8 +96,12 @@ fetch_metadata (id, last_fetch_at, status, total_regulations, error_message)
   - Application running successfully on port 5000
 
 ## Next Steps for Users
-1. ✅ Click "Refresh Data" button on Dashboard to fetch eCFR data (Working!)
-2. ✅ View real-time analytics in charts and metric cards (Working!)
-3. ✅ Explore detailed analysis in the Analysis page (Working!)
-4. ✅ Export data using CSV or JSON export buttons (Ready!)
-5. 🚀 Publish the application to make it publicly accessible
+1. ✅ Click "Refresh Data" button on Dashboard to fetch all CFR titles (Working!)
+2. ✅ Use Titles page to selectively refresh specific CFR titles (Working!)
+3. ✅ View real-time analytics in charts and metric cards (Working!)
+4. ✅ Explore detailed analysis in the Analysis page (Working!)
+5. ✅ Export data using CSV or JSON export buttons (Working!)
+6. 🚀 Publish the application to make it publicly accessible
+
+## Known Minor Issues
+- Progress indicator may remain visible after selective refresh completes (workaround: refresh page)

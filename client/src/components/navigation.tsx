@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { BarChart3, FileText } from "lucide-react";
+import { BarChart3, FileText, List } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function Navigation() {
@@ -32,6 +32,16 @@ export function Navigation() {
                 >
                   <FileText className="h-4 w-4 mr-2" />
                   Analysis
+                </Button>
+              </Link>
+              <Link href="/titles">
+                <Button
+                  variant={location === '/titles' ? 'secondary' : 'ghost'}
+                  size="sm"
+                  data-testid="link-titles"
+                >
+                  <List className="h-4 w-4 mr-2" />
+                  Titles
                 </Button>
               </Link>
             </div>

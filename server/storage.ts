@@ -8,7 +8,7 @@ import {
   type InsertFetchMetadata 
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, sql } from "drizzle-orm";
+import { eq, sql, inArray } from "drizzle-orm";
 
 export interface IStorage {
   // Regulations
@@ -16,6 +16,7 @@ export interface IStorage {
   getAllRegulations(): Promise<Regulation[]>;
   getRegulationsByAgency(agency: string): Promise<Regulation[]>;
   deleteAllRegulations(): Promise<void>;
+  deleteRegulationsByAgencies(agencyNames: string[]): Promise<void>;
   
   // Metadata
   createMetadata(metadata: InsertFetchMetadata): Promise<FetchMetadata>;
@@ -46,6 +47,13 @@ export class DatabaseStorage implements IStorage {
 
   async deleteAllRegulations(): Promise<void> {
     await db.delete(regulations);
+  }
+
+  async deleteRegulationsByAgencies(agencyNames: string[]): Promise<void> {
+    if (agencyNames.length === 0) return;
+    await db.delete(regulations).where(
+      inArray(regulations.agency, agencyNames)
+    );
   }
 
   // Metadata

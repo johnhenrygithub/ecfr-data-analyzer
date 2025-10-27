@@ -169,8 +169,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // POST /api/fetch - Fetch and store eCFR data
+  // Optional body: { titleNumbers: [1, 2, 3] } to fetch specific titles only
   app.post("/api/fetch", async (req, res) => {
     try {
+      const { titleNumbers } = req.body || {};
+      
       // Create initial metadata entry
       const metadata = await storage.createMetadata({
         lastFetchAt: new Date(),
@@ -182,7 +185,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       // Fetch in background (don't block response)
-      performECFRFetch(metadata.id).catch(err => {
+      performECFRFetch(metadata.id, titleNumbers).catch(err => {
         console.error("Background fetch failed:", err);
       });
 
@@ -199,20 +202,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 /**
  * Background task to fetch eCFR data
+ * @param metadataId - ID of the metadata entry to update
+ * @param titleNumbers - Optional array of specific title numbers to fetch
  */
-async function performECFRFetch(metadataId: string) {
+async function performECFRFetch(metadataId: string, titleNumbers?: number[]) {
   try {
     console.log("Starting eCFR data fetch...");
-    
-    // Clear existing regulations
-    await storage.deleteAllRegulations();
     
     // Fetch titles
     const titles = await fetchTitles();
     console.log(`Found ${titles.length} titles`);
     
-    // Filter non-reserved titles - fetch ALL titles
-    const validTitles = titles.filter(t => !t.reserved);
+    // Filter non-reserved titles
+    let validTitles = titles.filter(t => !t.reserved);
+    
+    // Further filter by specific title numbers if provided
+    if (titleNumbers && titleNumbers.length > 0) {
+      validTitles = validTitles.filter(t => titleNumbers.includes(t.number));
+      console.log(`Filtering to ${validTitles.length} requested titles: ${titleNumbers.join(', ')}`);
+      
+      // Delete only the specific titles being refreshed
+      const agencyNamesToDelete = validTitles.map(t => t.name);
+      console.log(`Deleting existing data for agencies: ${agencyNamesToDelete.join(', ')}`);
+      await storage.deleteRegulationsByAgencies(agencyNamesToDelete);
+    } else {
+      // Fetching all titles - clear everything first
+      console.log('Fetching all titles - clearing existing data');
+      await storage.deleteAllRegulations();
+    }
+    
     const totalTitles = validTitles.length;
     
     // Update metadata with total count
@@ -241,21 +259,17 @@ async function performECFRFetch(metadataId: string) {
           
           console.log(`[${currentProgress}/${totalTitles}] Fetching title ${title.number}: ${title.name}`);
           
-          const xmlContent = await fetchTitleContent(title.number, title.latest_issue_date);
+          let xmlContent = await fetchTitleContent(title.number, title.latest_issue_date);
           if (!xmlContent) {
             console.log(`No content for title ${title.number} - skipping`);
             continue;
           }
           
-          // Skip titles that are too large (over 50MB) to avoid OOM
-          const xmlSize = Buffer.byteLength(xmlContent, 'utf8');
-          if (xmlSize > 50 * 1024 * 1024) {
-            console.log(`Title ${title.number} is too large (${Math.round(xmlSize / 1024 / 1024)}MB) - skipping to avoid OOM`);
-            continue;
-          }
-          
           // Extract text from XML
           const text = extractTextFromXML(xmlContent);
+          
+          // Free XML content immediately after extraction to reduce memory
+          xmlContent = null;
           if (!text || text.trim().length === 0) {
             console.log(`No text content for title ${title.number} - skipping`);
             continue;
@@ -308,14 +322,19 @@ async function performECFRFetch(metadataId: string) {
       }
     }
     
-    // Update metadata with final success status
+    // Get the actual total regulation count from database
+    const allRegulations = await storage.getAllRegulations();
+    const actualTotalCount = allRegulations.length;
+    
+    // Update metadata with final success status and correct total count
     await storage.updateMetadata(metadataId, {
       status: 'success',
+      totalRegulations: actualTotalCount,
       currentTitle: 'Complete',
       progressCurrent: totalTitles,
     });
     
-    console.log(`eCFR fetch complete. Stored ${totalRegulations} regulations.`);
+    console.log(`eCFR fetch complete. Stored ${totalRegulations} regulations in this fetch. Total in database: ${actualTotalCount}.`);
   } catch (error) {
     console.error("Error in performECFRFetch:", error);
     
