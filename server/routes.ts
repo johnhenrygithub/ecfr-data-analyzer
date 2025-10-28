@@ -242,8 +242,9 @@ async function performECFRFetch(metadataId: string, titleNumbers?: number[]) {
     let totalRegulations = 0;
     let currentProgress = 0;
     
-    // Process titles in batches to reduce memory pressure
-    const BATCH_SIZE = 5;
+    // Process titles in smaller batches to reduce memory pressure
+    // Use batch size of 1 for very large titles
+    const BATCH_SIZE = 1;
     for (let i = 0; i < validTitles.length; i += BATCH_SIZE) {
       const batch = validTitles.slice(i, i + BATCH_SIZE);
       
@@ -266,18 +267,30 @@ async function performECFRFetch(metadataId: string, titleNumbers?: number[]) {
           }
           
           // Extract text from XML
-          const text = extractTextFromXML(xmlContent);
+          let text = extractTextFromXML(xmlContent);
           
           // Free XML content immediately after extraction to reduce memory
           xmlContent = null;
+          if (global.gc) global.gc();
+          
           if (!text || text.trim().length === 0) {
             console.log(`No text content for title ${title.number} - skipping`);
             continue;
           }
           
+          const textLength = text.length;
+          console.log(`Text length for ${title.name}: ${textLength} characters`);
+          
           // Analyze text (calculate metrics from full text)
           const analysis = analyzeText(text);
           const checksum = calculateChecksum(text);
+          
+          // Extract small sample before clearing full text
+          const textSample = text.substring(0, 5000);
+          
+          // Immediately clear large text from memory
+          text = null as any;
+          if (global.gc) global.gc();
           
           // Store regulation with metrics and truncated text sample
           // Metrics are pre-calculated from full text to avoid re-analysis of truncated data
@@ -286,7 +299,7 @@ async function performECFRFetch(metadataId: string, titleNumbers?: number[]) {
             title: `Title ${title.number}`,
             chapter: '',
             section: '',
-            textContent: text.substring(0, 5000), // Small sample for reference
+            textContent: textSample,
             wordCount: analysis.wordCount,
             checksum,
             // Store metrics as integers to avoid floating point precision issues
@@ -316,9 +329,10 @@ async function performECFRFetch(metadataId: string, titleNumbers?: number[]) {
         }
       }
       
-      // Small delay between batches to allow GC
+      // Longer delay between batches to allow GC to complete
       if (i + BATCH_SIZE < validTitles.length) {
-        await new Promise(resolve => setTimeout(resolve, 100));
+        if (global.gc) global.gc();
+        await new Promise(resolve => setTimeout(resolve, 500));
       }
     }
     
