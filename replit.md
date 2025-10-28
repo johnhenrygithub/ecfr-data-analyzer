@@ -114,12 +114,13 @@ fetch_metadata (id, last_fetch_at, status, total_regulations, error_message)
 
 ## Known Limitations
 
-### Title 40 (Protection of Environment)
-- **Size**: Title 40 exceeds 75 million characters in XML format
-- **Status**: Automatically skipped to prevent memory crashes
-- **Impact**: This title contains EPA environmental regulations and cannot be analyzed with current memory constraints
-- **Workaround**: The app will gracefully skip Title 40 with a warning message and continue processing other titles
-- **Total CFR Titles**: 48 out of 49 available (Title 40 excluded)
+### Title 40 (Protection of Environment) - Development Environment Only
+- **Size**: Title 40 is 156 million characters in XML format
+- **Development Status**: Will crash in development due to 2GB RAM limit
+- **Production Status**: Should work when published with 4GB+ RAM allocation
+- **Impact**: This title contains EPA environmental regulations
+- **Recommendation**: Configure production deployment with at least 4GB RAM to process all 49 titles
+- **Total CFR Titles**: 48/49 in development, potentially 49/49 in production
 
 ### Minor UI Issues
 - Progress indicator may remain visible after selective refresh completes (workaround: refresh page)

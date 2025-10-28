@@ -271,9 +271,9 @@ async function performECFRFetch(metadataId: string, titleNumbers?: number[]) {
           console.log(`XML size for ${title.name}: ${xmlSize} characters`);
           
           // Skip extremely large titles that would cause memory issues
-          // Even with SAX streaming parser, Title 40 (156M chars) exceeds platform 2GB memory limit
-          // The text extraction and regex operations consume too much memory
-          const MAX_XML_SIZE = 75_000_000; // 75 million characters (safely processes 48/49 titles)
+          // Title 40 (156M chars) may work in production with higher RAM allocation
+          // Development environment is limited to 2GB, but production can be configured with more
+          const MAX_XML_SIZE = 200_000_000; // 200 million characters (supports Title 40 at 156M)
           if (xmlSize > MAX_XML_SIZE) {
             console.log(`⚠️  Title ${title.number} (${title.name}) is too large (${xmlSize} chars). Skipping to prevent memory crash.`);
             xmlContent = null;
