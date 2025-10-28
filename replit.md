@@ -75,13 +75,15 @@ fetch_metadata (id, last_fetch_at, status, total_regulations, error_message)
 - App name: "eCFR Data Analyzer" (displayed in navigation and page titles)
 
 ## Recent Changes
-- 2025-10-28: Added memory management and error handling improvements
-  - Implemented XML size checking (75M character limit) to prevent crashes
-  - Added automatic skipping of extremely large titles (Title 40)
+- 2025-10-28: Memory management improvements and Title 40 analysis
+  - Implemented SAX streaming XML parser to replace regex-based text extraction
+  - Tested increasing memory limits: Title 40 (156M chars) still exceeds platform 2GB heap limit
+  - Root cause: Even with streaming parser, accumulated text + regex operations consume >2GB
+  - Confirmed 75M character limit safely processes 48/49 titles without crashes
+  - Title 40 gracefully skipped with warning message
   - Improved error handling to maintain accurate metadata even on fetch failures
   - Enhanced garbage collection with explicit memory cleanup
   - Successfully processed Title 26 (73M chars, 12M words) without issues
-  - Total of 48 CFR titles analyzed (Title 40 excluded)
   
 - 2025-10-27: Implemented complete selective refresh feature for CFR titles
   - Added checkbox UI to select specific titles for refresh
