@@ -8,6 +8,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import { ChartCard } from "@/components/chart-card";
 import { ChartSkeleton } from "@/components/loading-skeleton";
 import { Progress } from "@/components/ui/progress";
+import { useToast } from "@/hooks/use-toast";
 
 interface TrendData {
   year: number;
@@ -82,6 +83,7 @@ const ALL_TITLES = [
 ];
 
 export default function HistoricalTrends() {
+  const { toast } = useToast();
   const [selectedTitle, setSelectedTitle] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [processingYear, setProcessingYear] = useState<number | null>(null);
@@ -119,7 +121,27 @@ export default function HistoricalTrends() {
     }, 2000);
 
     try {
-      await refetch();
+      const result = await refetch();
+      
+      // Check if we got any data back
+      if (!result.data || result.data.trends.length === 0) {
+        toast({
+          title: "Historical Data Unavailable",
+          description: "The eCFR API's historical data service is experiencing issues. Please try again later or select a different title.",
+          variant: "destructive",
+        });
+      } else if (result.data.trends.length < (currentYearValue - startYear + 1)) {
+        toast({
+          title: "Partial Data Retrieved",
+          description: `Only ${result.data.trends.length} of ${currentYearValue - startYear + 1} years could be fetched. The eCFR API may be experiencing issues.`,
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Failed to Load Historical Data",
+        description: "The eCFR API is not responding. This service may be temporarily unavailable.",
+        variant: "destructive",
+      });
     } finally {
       clearInterval(progressInterval);
       setIsLoading(false);
@@ -129,10 +151,14 @@ export default function HistoricalTrends() {
 
   const trends = historicalData?.trends || [];
   
-  // Calculate growth rate
+  // Calculate growth rate with guards against division by zero
   const growthData = trends.map((trend, idx) => {
     if (idx === 0) return { ...trend, growthRate: 0 };
     const prevWordCount = trends[idx - 1].wordCount;
+    // Guard against division by zero or missing data
+    if (!prevWordCount || prevWordCount === 0) {
+      return { ...trend, growthRate: 0 };
+    }
     const growthRate = ((trend.wordCount - prevWordCount) / prevWordCount) * 100;
     return { ...trend, growthRate };
   });

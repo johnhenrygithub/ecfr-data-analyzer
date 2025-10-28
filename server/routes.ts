@@ -188,9 +188,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const trends = [];
+      let consecutiveFailures = 0;
+      const MAX_CONSECUTIVE_FAILURES = 3; // Circuit breaker: stop after 3 consecutive failures
       
       // Fetch data for each year
       for (let year = startYear; year <= endYear; year++) {
+        // Circuit breaker: if we've had too many consecutive failures, stop trying
+        if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
+          console.log(`Stopping after ${consecutiveFailures} consecutive failures - eCFR API appears to be down`);
+          break;
+        }
+        
         try {
           // Use January 15th as the snapshot date for each year
           const date = `${year}-01-15`;
@@ -200,6 +208,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           if (!xmlContent) {
             console.log(`No content available for Title ${titleNumber} in ${year}`);
+            consecutiveFailures++;
             continue;
           }
 
@@ -208,6 +217,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           if (analysis.wordCount === 0) {
             console.log(`No text content for Title ${titleNumber} in ${year}`);
+            consecutiveFailures++;
             continue;
           }
 
@@ -224,11 +234,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           console.log(`Analyzed Title ${titleNumber} (${year}): ${analysis.wordCount} words`);
           
+          // Reset consecutive failures on success
+          consecutiveFailures = 0;
+          
           // Trigger garbage collection after each year
           if (global.gc) global.gc();
           
         } catch (yearError) {
           console.error(`Error processing Title ${titleNumber} for year ${year}:`, yearError);
+          consecutiveFailures++;
           // Continue with next year
         }
       }

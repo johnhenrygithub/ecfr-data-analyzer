@@ -83,10 +83,13 @@ fetch_metadata (id, last_fetch_at, status, total_regulations, error_message)
   - New API endpoint: `GET /api/historical/title/:number` fetches annual snapshots from eCFR API
   - Interactive charts showing word count evolution, RCI trends, sentence count, and annual growth rate
   - User selects a title and views trends from the last 5 years (optimized for performance)
+  - Circuit breaker stops after 3 consecutive failures to prevent long waits
+  - Toast notifications inform users when data is unavailable or partial
+  - Guard against division by zero in growth rate calculations
   - Processing time: 5-15 seconds for small titles, 1-2 minutes for Title 40
   - No database storage required - fetches historical data on-demand from eCFR API
   - Progress indicator shows current year being processed
-  - Demonstrates year-over-year changes like "Title 40 grew from 15M to 16.8M words"
+  - **Note**: eCFR API's historical data access is unreliable - see Known Limitations section
 
 - 2025-10-28: ✅ **Title 40 Successfully Processed! All 49 CFR Titles Working!**
   - **Implemented true incremental processing** with incremental checksum calculation
@@ -127,6 +130,18 @@ fetch_metadata (id, last_fetch_at, status, total_regulations, error_message)
 6. 🚀 Publish the application to make it publicly accessible
 
 ## Known Limitations
+
+### Historical Trends Feature - eCFR API Reliability
+- **Status**: Feature implemented correctly, but may not work due to external API issues
+- **Issue**: eCFR API's historical/point-in-time data access is unreliable
+  - Gateway timeout errors occur when fetching historical XML files
+  - Example: `/full/2021-01-15/title-7.xml` times out frequently
+- **Mitigation**: 
+  - Circuit breaker stops after 3 consecutive failures
+  - User receives toast notifications about API issues
+  - Partial data shown if some years succeed
+- **Current Data Works**: Latest/current eCFR data fetches perfectly (all 49 titles work)
+- **Recommendation**: Wait for eCFR.gov to improve historical API reliability
 
 ### Title 40 (Protection of Environment) - ✅ WORKING!
 - **Size**: Title 40 is 156 million characters in XML format
