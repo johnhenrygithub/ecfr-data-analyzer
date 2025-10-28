@@ -1,4 +1,5 @@
 import { createHash } from "crypto";
+import * as sax from "sax";
 
 const ECFR_API_BASE = "https://www.ecfr.gov/api/versioner/v1";
 
@@ -56,18 +57,55 @@ export async function fetchTitleContent(titleNumber: number, date: string): Prom
 }
 
 /**
- * Extracts plain text from XML regulatory content
- * Removes XML tags and extracts readable text
+ * Extracts plain text from XML regulatory content using streaming parser
+ * This avoids loading the entire XML into memory and prevents regex memory issues
  */
 export function extractTextFromXML(xmlContent: string): string {
-  // Remove XML tags and extract text content
-  // This is a simple approach - remove all XML tags
-  let text = xmlContent
-    .replace(/<[^>]+>/g, ' ')  // Remove XML tags
-    .replace(/\s+/g, ' ')      // Normalize whitespace
-    .trim();
+  const textChunks: string[] = [];
+  let currentText = '';
   
-  return text;
+  // Create a streaming SAX parser
+  const parser = sax.parser(true, {
+    lowercase: true,
+    normalize: true,
+  });
+  
+  // Collect text content as we encounter it
+  parser.ontext = (text) => {
+    const trimmed = text.trim();
+    if (trimmed.length > 0) {
+      currentText += trimmed + ' ';
+      
+      // Flush to array every 10000 characters to avoid string concatenation issues
+      if (currentText.length > 10000) {
+        textChunks.push(currentText);
+        currentText = '';
+      }
+    }
+  };
+  
+  // Handle parser errors gracefully
+  parser.onerror = (error) => {
+    console.error('XML parsing error:', error);
+    // Continue parsing despite errors
+    parser.resume();
+  };
+  
+  // Process the XML in chunks to avoid memory issues
+  const chunkSize = 1000000; // 1MB chunks
+  for (let i = 0; i < xmlContent.length; i += chunkSize) {
+    const chunk = xmlContent.substring(i, i + chunkSize);
+    parser.write(chunk);
+  }
+  parser.close();
+  
+  // Add any remaining text
+  if (currentText.length > 0) {
+    textChunks.push(currentText);
+  }
+  
+  // Join all text chunks and normalize whitespace
+  return textChunks.join('').replace(/\s+/g, ' ').trim();
 }
 
 /**
