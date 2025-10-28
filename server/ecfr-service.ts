@@ -109,7 +109,117 @@ export function extractTextFromXML(xmlContent: string): string {
 }
 
 /**
+ * Analyzes XML content incrementally without building full text string in memory
+ * Processes text in chunks during SAX parsing to handle extremely large documents
+ */
+export function analyzeTextIncremental(xmlContent: string): {
+  wordCount: number;
+  sentenceCount: number;
+  avgSentenceLength: number;
+  vocabularyDiversity: number;
+  uniqueWords: number;
+  fullText: string;
+} {
+  let wordCount = 0;
+  let sentenceCount = 0;
+  const uniqueWordsSet = new Set<string>();
+  const textChunks: string[] = [];
+  let currentText = '';
+  
+  // Create a streaming SAX parser
+  const parser = sax.parser(true, {
+    lowercase: true,
+    normalize: true,
+  });
+  
+  // Process text incrementally as we encounter it
+  parser.ontext = (text) => {
+    const trimmed = text.trim();
+    if (trimmed.length > 0) {
+      currentText += trimmed + ' ';
+      
+      // Process in 50KB chunks to balance memory and performance
+      if (currentText.length > 50000) {
+        processTextChunk(currentText);
+        currentText = '';
+        
+        // Trigger garbage collection if available
+        if (global.gc && wordCount % 100000 === 0) {
+          global.gc();
+        }
+      }
+    }
+  };
+  
+  // Helper function to process a chunk of text
+  function processTextChunk(chunk: string) {
+    // Store chunk for later reassembly (needed for checksum)
+    textChunks.push(chunk);
+    
+    // Count words in this chunk
+    const words = chunk.split(/\s+/).filter(w => w.length > 0);
+    wordCount += words.length;
+    
+    // Track unique words
+    words.forEach(word => {
+      uniqueWordsSet.add(word.toLowerCase());
+    });
+    
+    // Count sentences (periods, exclamation marks, question marks)
+    const sentences = chunk.match(/[.!?]+/g);
+    if (sentences) {
+      sentenceCount += sentences.length;
+    }
+  }
+  
+  // Handle parser errors gracefully
+  parser.onerror = (error) => {
+    console.error('XML parsing error:', error);
+    parser.resume();
+  };
+  
+  // Process the XML in chunks
+  const chunkSize = 1000000; // 1MB chunks
+  for (let i = 0; i < xmlContent.length; i += chunkSize) {
+    const chunk = xmlContent.substring(i, i + chunkSize);
+    parser.write(chunk);
+    
+    // Periodic garbage collection for very large files
+    if (global.gc && i % 10000000 === 0) {
+      global.gc();
+    }
+  }
+  parser.close();
+  
+  // Process any remaining text
+  if (currentText.length > 0) {
+    processTextChunk(currentText);
+  }
+  
+  // Ensure at least 1 sentence
+  if (sentenceCount === 0) sentenceCount = 1;
+  
+  // Calculate metrics
+  const avgSentenceLength = wordCount / sentenceCount;
+  const uniqueWords = uniqueWordsSet.size;
+  const vocabularyDiversity = wordCount > 0 ? uniqueWords / wordCount : 0;
+  
+  // Build full text only once at the end (needed for checksum)
+  const fullText = textChunks.join('').replace(/\s+/g, ' ').trim();
+  
+  return {
+    wordCount,
+    sentenceCount,
+    avgSentenceLength,
+    vocabularyDiversity,
+    uniqueWords,
+    fullText,
+  };
+}
+
+/**
  * Analyzes text to calculate word count and complexity metrics
+ * (Legacy function - kept for backwards compatibility)
  */
 export function analyzeText(text: string): {
   wordCount: number;

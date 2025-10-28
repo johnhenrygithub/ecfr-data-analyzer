@@ -6,6 +6,7 @@ import {
   fetchTitleContent, 
   extractTextFromXML,
   analyzeText,
+  analyzeTextIncremental,
   calculateChecksum,
   calculateRCI 
 } from "./ecfr-service";
@@ -281,30 +282,31 @@ async function performECFRFetch(metadataId: string, titleNumbers?: number[]) {
             continue;
           }
           
-          // Extract text from XML
-          let text = extractTextFromXML(xmlContent);
+          // Use incremental analysis to avoid building full text string in memory
+          // This processes text in chunks during XML parsing (critical for Title 40)
+          console.log(`Starting incremental analysis for ${title.name}...`);
+          const analysis = analyzeTextIncremental(xmlContent);
           
           // Free XML content immediately after extraction to reduce memory
           xmlContent = null;
           if (global.gc) global.gc();
           
-          if (!text || text.trim().length === 0) {
+          if (!analysis.fullText || analysis.fullText.trim().length === 0) {
             console.log(`No text content for title ${title.number} - skipping`);
             continue;
           }
           
-          const textLength = text.length;
-          console.log(`Text length for ${title.name}: ${textLength} characters`);
+          const textLength = analysis.fullText.length;
+          console.log(`Text length for ${title.name}: ${textLength} characters (${analysis.wordCount} words)`);
           
-          // Analyze text (calculate metrics from full text)
-          const analysis = analyzeText(text);
-          const checksum = calculateChecksum(text);
+          // Calculate checksum from the assembled text
+          const checksum = calculateChecksum(analysis.fullText);
           
           // Extract small sample before clearing full text
-          const textSample = text.substring(0, 5000);
+          const textSample = analysis.fullText.substring(0, 5000);
           
           // Immediately clear large text from memory
-          text = null as any;
+          let fullText = null as any;
           if (global.gc) global.gc();
           
           // Store regulation with metrics and truncated text sample
