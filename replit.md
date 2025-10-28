@@ -76,8 +76,15 @@ fetch_metadata (id, last_fetch_at, status, total_regulations, error_message)
 
 ## User Preferences
 - App name: "eCFR Data Analyzer" (displayed in navigation and page titles)
+- Author: Dr. Mathias (displayed in footer, README.md)
 
 ## Recent Changes
+- 2025-10-28: ✅ **Author Attribution Added!**
+  - Created `footer.tsx` component displaying "Created by Dr. Mathias"
+  - Added footer to all pages: Dashboard, Analysis, Historical Trends, Titles
+  - Created comprehensive README.md with author section at top and bottom
+  - Author attribution appears prominently on GitHub repository and in application
+  
 - 2025-10-28: ✅ **Historical Trends Feature Implemented!**
   - Added `/historical-trends` page for viewing annual changes over time
   - New API endpoint: `GET /api/historical/title/:number` fetches annual snapshots from eCFR API
