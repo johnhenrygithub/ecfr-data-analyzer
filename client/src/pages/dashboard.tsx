@@ -9,6 +9,7 @@ import { useState, useEffect } from "react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Progress } from "@/components/ui/progress";
+import { Footer } from "@/components/footer";
 import type { AgencyAnalysis, FetchMetadata } from "@shared/schema";
 
 export default function Dashboard() {
@@ -323,6 +324,7 @@ export default function Dashboard() {
           )}
         </div>
       </div>
+      <Footer />
     </div>
   );
 }

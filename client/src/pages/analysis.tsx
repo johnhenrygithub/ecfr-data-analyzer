@@ -5,6 +5,7 @@ import { ExportButtons } from "@/components/export-buttons";
 import { TableSkeleton } from "@/components/loading-skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
+import { Footer } from "@/components/footer";
 import type { AgencyAnalysis } from "@shared/schema";
 
 export default function Analysis() {
@@ -192,6 +193,7 @@ export default function Analysis() {
           </TabsContent>
         </Tabs>
       </div>
+      <Footer />
     </div>
   );
 }

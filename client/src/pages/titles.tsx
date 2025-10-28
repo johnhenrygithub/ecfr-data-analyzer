@@ -8,6 +8,7 @@ import { RefreshCw, CheckSquare, Square } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Progress } from "@/components/ui/progress";
+import { Footer } from "@/components/footer";
 import type { FetchMetadata, AgencyAnalysis } from "@shared/schema";
 
 interface CFRTitle {
@@ -244,6 +245,7 @@ export default function Titles() {
           )}
         </Card>
       </div>
+      <Footer />
     </div>
   );
 }

@@ -9,6 +9,7 @@ import { ChartCard } from "@/components/chart-card";
 import { ChartSkeleton } from "@/components/loading-skeleton";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
+import { Footer } from "@/components/footer";
 
 interface TrendData {
   year: number;
@@ -426,6 +427,7 @@ export default function HistoricalTrends() {
           </Card>
         )}
       </div>
+      <Footer />
     </div>
   );
 }
