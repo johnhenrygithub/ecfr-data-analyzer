@@ -1,5 +1,5 @@
 import { createHash } from "crypto";
-import * as sax from "sax";
+import sax from "sax";
 
 const ECFR_API_BASE = "https://www.ecfr.gov/api/versioner/v1";
 
