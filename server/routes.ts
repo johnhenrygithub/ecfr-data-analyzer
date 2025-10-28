@@ -366,9 +366,22 @@ async function performECFRFetch(metadataId: string, titleNumbers?: number[]) {
   } catch (error) {
     console.error("Error in performECFRFetch:", error);
     
-    await storage.updateMetadata(metadataId, {
-      status: 'error',
-      errorMessage: error instanceof Error ? error.message : 'Unknown error',
-    });
+    // Get the actual total regulation count from database even on error
+    try {
+      const allRegulations = await storage.getAllRegulations();
+      const actualTotalCount = allRegulations.length;
+      
+      await storage.updateMetadata(metadataId, {
+        status: 'error',
+        totalRegulations: actualTotalCount,
+        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+        progressCurrent: null,
+        progressTotal: null,
+        currentTitle: null,
+      });
+    } catch (metadataError) {
+      // If we can't even update metadata, just log it
+      console.error("Error updating metadata on fetch failure:", metadataError);
+    }
   }
 }

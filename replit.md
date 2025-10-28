@@ -75,6 +75,14 @@ fetch_metadata (id, last_fetch_at, status, total_regulations, error_message)
 - App name: "eCFR Data Analyzer" (displayed in navigation and page titles)
 
 ## Recent Changes
+- 2025-10-28: Added memory management and error handling improvements
+  - Implemented XML size checking (75M character limit) to prevent crashes
+  - Added automatic skipping of extremely large titles (Title 40)
+  - Improved error handling to maintain accurate metadata even on fetch failures
+  - Enhanced garbage collection with explicit memory cleanup
+  - Successfully processed Title 26 (73M chars, 12M words) without issues
+  - Total of 48 CFR titles analyzed (Title 40 excluded)
+  
 - 2025-10-27: Implemented complete selective refresh feature for CFR titles
   - Added checkbox UI to select specific titles for refresh
   - Implemented backend deletion of specific agencies using Drizzle's `inArray()`
@@ -83,8 +91,7 @@ fetch_metadata (id, last_fetch_at, status, total_regulations, error_message)
   - Real-time progress tracking with X/N format during selective refresh
   - "Loaded" badges appear for successfully refreshed titles
   - Data persists across all page navigation
-  - Successfully tested with clean database (47 titles, no duplicates)
-  - Dashboard metrics remain accurate after selective refresh (Total Regulations = 47)
+  - Dashboard metrics remain accurate after selective refresh
   
 - 2025-10-23: Complete implementation and deployment
   - All frontend components built with Material Design data dashboard aesthetic
@@ -103,5 +110,14 @@ fetch_metadata (id, last_fetch_at, status, total_regulations, error_message)
 5. ✅ Export data using CSV or JSON export buttons (Working!)
 6. 🚀 Publish the application to make it publicly accessible
 
-## Known Minor Issues
+## Known Limitations
+
+### Title 40 (Protection of Environment)
+- **Size**: Title 40 exceeds 75 million characters in XML format
+- **Status**: Automatically skipped to prevent memory crashes
+- **Impact**: This title contains EPA environmental regulations and cannot be analyzed with current memory constraints
+- **Workaround**: The app will gracefully skip Title 40 with a warning message and continue processing other titles
+- **Total CFR Titles**: 48 out of 49 available (Title 40 excluded)
+
+### Minor UI Issues
 - Progress indicator may remain visible after selective refresh completes (workaround: refresh page)
