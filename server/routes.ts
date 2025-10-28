@@ -266,6 +266,20 @@ async function performECFRFetch(metadataId: string, titleNumbers?: number[]) {
             continue;
           }
           
+          // Check XML size before processing
+          const xmlSize = xmlContent.length;
+          console.log(`XML size for ${title.name}: ${xmlSize} characters`);
+          
+          // Skip extremely large titles that would cause memory issues
+          // Title 40 is ~80M+ characters and crashes the system
+          const MAX_XML_SIZE = 75_000_000; // 75 million characters
+          if (xmlSize > MAX_XML_SIZE) {
+            console.log(`⚠️  Title ${title.number} (${title.name}) is too large (${xmlSize} chars). Skipping to prevent memory crash.`);
+            xmlContent = null;
+            if (global.gc) global.gc();
+            continue;
+          }
+          
           // Extract text from XML
           let text = extractTextFromXML(xmlContent);
           
