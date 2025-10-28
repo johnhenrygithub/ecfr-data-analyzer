@@ -111,6 +111,7 @@ export function extractTextFromXML(xmlContent: string): string {
 /**
  * Analyzes XML content incrementally without building full text string in memory
  * Processes text in chunks during SAX parsing to handle extremely large documents
+ * Calculates checksum incrementally to avoid memory issues
  */
 export function analyzeTextIncremental(xmlContent: string): {
   wordCount: number;
@@ -118,13 +119,15 @@ export function analyzeTextIncremental(xmlContent: string): {
   avgSentenceLength: number;
   vocabularyDiversity: number;
   uniqueWords: number;
-  fullText: string;
+  checksum: string;
 } {
   let wordCount = 0;
   let sentenceCount = 0;
   const uniqueWordsSet = new Set<string>();
-  const textChunks: string[] = [];
   let currentText = '';
+  
+  // Create incremental checksum hash
+  const hash = createHash('sha256');
   
   // Create a streaming SAX parser
   const parser = sax.parser(true, {
@@ -153,8 +156,8 @@ export function analyzeTextIncremental(xmlContent: string): {
   
   // Helper function to process a chunk of text
   function processTextChunk(chunk: string) {
-    // Store chunk for later reassembly (needed for checksum)
-    textChunks.push(chunk);
+    // Update checksum incrementally (critical - avoids building full string)
+    hash.update(chunk);
     
     // Count words in this chunk
     const words = chunk.split(/\s+/).filter(w => w.length > 0);
@@ -204,8 +207,8 @@ export function analyzeTextIncremental(xmlContent: string): {
   const uniqueWords = uniqueWordsSet.size;
   const vocabularyDiversity = wordCount > 0 ? uniqueWords / wordCount : 0;
   
-  // Build full text only once at the end (needed for checksum)
-  const fullText = textChunks.join('').replace(/\s+/g, ' ').trim();
+  // Finalize checksum (no need to build full text!)
+  const checksum = hash.digest('hex');
   
   return {
     wordCount,
@@ -213,7 +216,7 @@ export function analyzeTextIncremental(xmlContent: string): {
     avgSentenceLength,
     vocabularyDiversity,
     uniqueWords,
-    fullText,
+    checksum,
   };
 }
 

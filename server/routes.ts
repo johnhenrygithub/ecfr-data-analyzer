@@ -284,6 +284,7 @@ async function performECFRFetch(metadataId: string, titleNumbers?: number[]) {
           
           // Use incremental analysis to avoid building full text string in memory
           // This processes text in chunks during XML parsing (critical for Title 40)
+          // Checksum is calculated incrementally too - NEVER builds full text string!
           console.log(`Starting incremental analysis for ${title.name}...`);
           const analysis = analyzeTextIncremental(xmlContent);
           
@@ -291,22 +292,20 @@ async function performECFRFetch(metadataId: string, titleNumbers?: number[]) {
           xmlContent = null;
           if (global.gc) global.gc();
           
-          if (!analysis.fullText || analysis.fullText.trim().length === 0) {
+          if (analysis.wordCount === 0) {
             console.log(`No text content for title ${title.number} - skipping`);
             continue;
           }
           
-          const textLength = analysis.fullText.length;
-          console.log(`Text length for ${title.name}: ${textLength} characters (${analysis.wordCount} words)`);
+          console.log(`Analysis complete for ${title.name}: ${analysis.wordCount} words, ${analysis.sentenceCount} sentences`);
           
-          // Calculate checksum from the assembled text
-          const checksum = calculateChecksum(analysis.fullText);
+          // Use the incrementally calculated checksum
+          const checksum = analysis.checksum;
           
-          // Extract small sample before clearing full text
-          const textSample = analysis.fullText.substring(0, 5000);
+          // Store empty sample since we never built the full text
+          const textSample = '';
           
-          // Immediately clear large text from memory
-          let fullText = null as any;
+          // Trigger garbage collection
           if (global.gc) global.gc();
           
           // Store regulation with metrics and truncated text sample
