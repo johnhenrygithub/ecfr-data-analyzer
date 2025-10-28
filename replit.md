@@ -22,6 +22,8 @@ A full-stack web application that downloads and analyzes U.S. Electronic Code of
 **Pages:**
 - `dashboard.tsx`: Hero section with refresh button, 4 metric cards (Total Agencies, Total Regulations, Total Words, Avg Complexity), 4 interactive charts (Word Count by Agency, RCI, Distribution, Vocabulary Diversity)
 - `analysis.tsx`: Tabbed interface (Overview, Word Count, Complexity, Checksums) with sortable data tables and CSV/JSON export
+- `historical-trends.tsx`: Historical trend analysis page with title selector, annual snapshots from last 5 years, 4 trend charts (Word Count Evolution, RCI Trends, Sentence Count, Annual Growth Rate)
+- `titles.tsx`: Selective refresh interface with checkbox selection for CFR titles
 - `navigation.tsx`: Top nav bar with active route highlighting
 
 **Components:**
@@ -45,6 +47,7 @@ A full-stack web application that downloads and analyzes U.S. Electronic Code of
 - `GET /api/analysis/agencies` - Complete analysis with RCI
 - `GET /api/analysis/wordcount` - Word count metrics
 - `GET /api/analysis/checksums` - Data integrity checksums
+- `GET /api/historical/title/:number` - Historical trend data for a specific title (last 5 years)
 - `POST /api/fetch` - Trigger eCFR data fetch
 
 **eCFR Integration:**
@@ -75,6 +78,16 @@ fetch_metadata (id, last_fetch_at, status, total_regulations, error_message)
 - App name: "eCFR Data Analyzer" (displayed in navigation and page titles)
 
 ## Recent Changes
+- 2025-10-28: ✅ **Historical Trends Feature Implemented!**
+  - Added `/historical-trends` page for viewing annual changes over time
+  - New API endpoint: `GET /api/historical/title/:number` fetches annual snapshots from eCFR API
+  - Interactive charts showing word count evolution, RCI trends, sentence count, and annual growth rate
+  - User selects a title and views trends from the last 5 years (optimized for performance)
+  - Processing time: 5-15 seconds for small titles, 1-2 minutes for Title 40
+  - No database storage required - fetches historical data on-demand from eCFR API
+  - Progress indicator shows current year being processed
+  - Demonstrates year-over-year changes like "Title 40 grew from 15M to 16.8M words"
+
 - 2025-10-28: ✅ **Title 40 Successfully Processed! All 49 CFR Titles Working!**
   - **Implemented true incremental processing** with incremental checksum calculation
   - Key breakthrough: Never builds full text string in memory (not even for checksum)

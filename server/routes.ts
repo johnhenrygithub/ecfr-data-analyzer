@@ -169,6 +169,84 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // GET /api/historical/title/:number - Get historical trends for a specific title
+  app.get("/api/historical/title/:number", async (req, res) => {
+    try {
+      const titleNumber = parseInt(req.params.number);
+      const startYear = parseInt(req.query.start_year as string) || 2017;
+      const endYear = parseInt(req.query.end_year as string) || new Date().getFullYear();
+
+      if (isNaN(titleNumber) || titleNumber < 1 || titleNumber > 50) {
+        return res.status(400).json({ error: "Invalid title number" });
+      }
+
+      // First, get title metadata to know the title name
+      const titles = await fetchTitles();
+      const title = titles.find(t => t.number === titleNumber);
+      if (!title) {
+        return res.status(404).json({ error: "Title not found" });
+      }
+
+      const trends = [];
+      
+      // Fetch data for each year
+      for (let year = startYear; year <= endYear; year++) {
+        try {
+          // Use January 15th as the snapshot date for each year
+          const date = `${year}-01-15`;
+          
+          console.log(`Fetching historical data for Title ${titleNumber} (${year})...`);
+          const xmlContent = await fetchTitleContent(titleNumber, date);
+          
+          if (!xmlContent) {
+            console.log(`No content available for Title ${titleNumber} in ${year}`);
+            continue;
+          }
+
+          // Analyze the historical content
+          const analysis = analyzeTextIncremental(xmlContent);
+          
+          if (analysis.wordCount === 0) {
+            console.log(`No text content for Title ${titleNumber} in ${year}`);
+            continue;
+          }
+
+          trends.push({
+            year,
+            date,
+            wordCount: analysis.wordCount,
+            sentenceCount: analysis.sentenceCount,
+            avgSentenceLength: analysis.avgSentenceLength,
+            vocabularyDiversity: analysis.vocabularyDiversity,
+            uniqueWords: analysis.uniqueWords,
+            rci: calculateRCI(analysis.avgSentenceLength, analysis.vocabularyDiversity),
+          });
+
+          console.log(`Analyzed Title ${titleNumber} (${year}): ${analysis.wordCount} words`);
+          
+          // Trigger garbage collection after each year
+          if (global.gc) global.gc();
+          
+        } catch (yearError) {
+          console.error(`Error processing Title ${titleNumber} for year ${year}:`, yearError);
+          // Continue with next year
+        }
+      }
+
+      res.json({
+        titleNumber,
+        titleName: title.name,
+        trends,
+        startYear,
+        endYear,
+      });
+
+    } catch (error) {
+      console.error("Error fetching historical trends:", error);
+      res.status(500).json({ error: "Failed to fetch historical trends" });
+    }
+  });
+
   // POST /api/fetch - Fetch and store eCFR data
   // Optional body: { titleNumbers: [1, 2, 3] } to fetch specific titles only
   app.post("/api/fetch", async (req, res) => {

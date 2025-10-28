@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { BarChart3, FileText, List } from "lucide-react";
+import { BarChart3, FileText, List, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function Navigation() {
@@ -42,6 +42,16 @@ export function Navigation() {
                 >
                   <List className="h-4 w-4 mr-2" />
                   Titles
+                </Button>
+              </Link>
+              <Link href="/historical-trends">
+                <Button
+                  variant={location === '/historical-trends' ? 'secondary' : 'ghost'}
+                  size="sm"
+                  data-testid="link-historical-trends"
+                >
+                  <TrendingUp className="h-4 w-4 mr-2" />
+                  Historical Trends
                 </Button>
               </Link>
             </div>
